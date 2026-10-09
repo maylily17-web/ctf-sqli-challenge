@@ -3,14 +3,16 @@ import sqlite3
 
 app = Flask(__name__)
 
-# 커스텀 에러 함수: 인자로 들어온 문자열(플래그)을 에러 메시지에 포함시켜 강제로 예외 발생
-def sqlite_raise_error(val):
-    raise sqlite3.OperationalError(f"Flag Revealed: {val}")
+# 🚩 사용자 정의 함수 예외 발생 시 상세 메시지 출력을 허용
+sqlite3.enable_callback_tracebacks(True)
 
-# DB 연결 생성 시 커스텀 함수를 등록하는 헬퍼 함수
+# 커스텀 에러 함수: 전달받은 값(플래그)을 에러 메시지에 노출시키며 예외 발생
+def sqlite_raise_error(val):
+    raise sqlite3.OperationalError(f"Flag Revealed -> {val}")
+
+# DB 연결 및 커스텀 함수 등록 헬퍼
 def get_db_connection():
     conn = sqlite3.connect('database.db')
-    # SQLite에 'RAISE_ERROR'라는 이름의 커스텀 SQL 함수 등록 (인자 1개)
     conn.create_function("RAISE_ERROR", 1, sqlite_raise_error)
     return conn
 
@@ -19,7 +21,7 @@ def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 유저 테이블 생성
+    # 기존 유저 테이블 생성
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -45,7 +47,7 @@ def init_db():
     conn.commit()
     conn.close()
 
-# HTML 템플릿
+# HTML 템플릿 (로그인 폼 & 에러/성공 메시지 출력)
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
