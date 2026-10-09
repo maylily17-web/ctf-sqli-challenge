@@ -8,8 +8,7 @@ sqlite3.enable_callback_tracebacks(True)
 
 # 커스텀 에러 함수: 전달받은 값(플래그)을 에러 메시지에 노출시키며 예외 발생
 def sqlite_raise_error(val):
-    raise sqlite3.OperationalError(f"Flag Revealed -> {val}")
-
+    raise Exception(f"FLAG_DATA:{val}")
 # DB 연결 및 커스텀 함수 등록 헬퍼
 def get_db_connection():
     conn = sqlite3.connect('database.db')
