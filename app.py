@@ -3,24 +3,23 @@ import sqlite3
 
 app = Flask(__name__)
 
-# 🚩 사용자 정의 함수 예외 발생 시 상세 메시지 출력을 허용
-sqlite3.enable_callback_tracebacks(True)
+# 플래그 탈취용 전역 변수
+LAST_EXCEEDED_FLAG = None
 
-# 커스텀 에러 함수: 전달받은 값(플래그)을 에러 메시지에 노출시키며 예외 발생
 def sqlite_raise_error(val):
-    raise Exception(f"FLAG_DATA:{val}")
-# DB 연결 및 커스텀 함수 등록 헬퍼
+    global LAST_EXCEEDED_FLAG
+    LAST_EXCEEDED_FLAG = val  # SQL에서 넘어온 플래그 값을 기록
+    raise RuntimeError("TRIGGER_ERROR")
+
 def get_db_connection():
     conn = sqlite3.connect('database.db')
     conn.create_function("RAISE_ERROR", 1, sqlite_raise_error)
     return conn
 
-# DB 초기화 및 데이터 세팅
 def init_db():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # 기존 유저 테이블 생성
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -28,15 +27,12 @@ def init_db():
             password TEXT
         )
     ''')
-    
-    # 플래그 저장용 테이블 생성
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS flags (
             flag TEXT
         )
     ''')
     
-    # 기존 데이터 초기화
     cursor.execute('DELETE FROM users')
     cursor.execute('DELETE FROM flags')
     
@@ -46,7 +42,6 @@ def init_db():
     conn.commit()
     conn.close()
 
-# HTML 템플릿 (로그인 폼 & 에러/성공 메시지 출력)
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -83,13 +78,15 @@ def index():
 
 @app.route('/login', methods=['POST'])
 def login():
+    global LAST_EXCEEDED_FLAG
+    LAST_EXCEEDED_FLAG = None  # 요청마다 초기화
+
     username = request.form.get('username', '')
     password = request.form.get('password', '')
 
     conn = get_db_connection()
     cursor = conn.cursor()
 
-    # 취약한 SQL 쿼리문
     query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
 
     try:
@@ -103,9 +100,14 @@ def login():
             return render_template_string(HTML_TEMPLATE, message="로그인 실패: 아이디나 비밀번호가 틀렸습니다.")
 
     except sqlite3.Error as e:
-        # SQL 실행 중 발생한 에러 메시지를 화면에 노출
         conn.close()
-        return render_template_string(HTML_TEMPLATE, error=str(e))
+        # 🚩 커스텀 함수 실행으로 전역 변수에 저장된 플래그가 있다면 그것을 출력!
+        if LAST_EXCEEDED_FLAG:
+            err_msg = f"Flag Revealed -> {LAST_EXCEEDED_FLAG}"
+        else:
+            err_msg = str(e)
+            
+        return render_template_string(HTML_TEMPLATE, error=err_msg)
 
 if __name__ == '__main__':
     init_db()
