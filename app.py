@@ -3,12 +3,12 @@ import sqlite3
 
 app = Flask(__name__)
 
-# 플래그 탈취용 전역 변수
+# Error-based SQLi 시 플래그 가로채기용 전역 변수
 LAST_EXCEEDED_FLAG = None
 
 def sqlite_raise_error(val):
     global LAST_EXCEEDED_FLAG
-    LAST_EXCEEDED_FLAG = val  # SQL에서 넘어온 플래그 값을 기록
+    LAST_EXCEEDED_FLAG = val  # SQL 구문 실행 중 전달받은 진짜 플래그 저장
     raise RuntimeError("TRIGGER_ERROR")
 
 def get_db_connection():
@@ -36,8 +36,11 @@ def init_db():
     cursor.execute('DELETE FROM users')
     cursor.execute('DELETE FROM flags')
     
+    # users 테이블 생성 (유저 정보)
     cursor.execute("INSERT INTO users (username, password) VALUES ('admin', 'super_secret_p@ss')")
-    cursor.execute("INSERT INTO flags (flag) VALUES ('FLAG{Fake_Error_Based_SQLi_Success!}')")
+    
+    # 🚩 flags 테이블에 '진짜 플래그' 저장 (Error-based SQLi로만 탈취 가능)
+    cursor.execute("INSERT INTO flags (flag) VALUES ('FLAG{Real_Error_Based_SQLi_Master_2026!}')")
     
     conn.commit()
     conn.close()
@@ -87,6 +90,7 @@ def login():
     conn = get_db_connection()
     cursor = conn.cursor()
 
+    # 취약한 SQL 쿼리문
     query = f"SELECT * FROM users WHERE username = '{username}' AND password = '{password}'"
 
     try:
@@ -95,13 +99,15 @@ def login():
         conn.close()
 
         if user:
-            return render_template_string(HTML_TEMPLATE, message="로그인 성공!")
+            # 🎭 단순 로그인 성공 시 '가짜 플래그'를 출력하여 낚시!
+            fake_flag = "FLAG{Fake_Flag_Try_Error_Based_SQLi!}"
+            return render_template_string(HTML_TEMPLATE, message=f"로그인 성공! Flag: {fake_flag}")
         else:
             return render_template_string(HTML_TEMPLATE, message="로그인 실패: 아이디나 비밀번호가 틀렸습니다.")
 
     except sqlite3.Error as e:
         conn.close()
-        # 🚩 커스텀 함수 실행으로 전역 변수에 저장된 플래그가 있다면 그것을 출력!
+        # 🚩 Error-based SQLi 우회 성공 시 진짜 플래그 출력
         if LAST_EXCEEDED_FLAG:
             err_msg = f"Flag Revealed -> {LAST_EXCEEDED_FLAG}"
         else:
