@@ -39,8 +39,8 @@ def init_db():
     # users 테이블 생성 (유저 정보)
     cursor.execute("INSERT INTO users (username, password) VALUES ('admin', 'super_secret_p@ss')")
     
-    # 🚩 flags 테이블에 '진짜 플래그' 저장 (Error-based SQLi로만 탈취 가능)
-    cursor.execute("INSERT INTO flags (flag) VALUES ('FLAG{Real_Error_Based_SQLi_Master_2026!}')")
+    # 🚩 flags 테이블에 '진짜 플래그' 저장 (BUBU{} 형식 적용)
+    cursor.execute("INSERT INTO flags (flag) VALUES ('BUBU{Real_Error_Based_SQLi_Master_2026!}')")
     
     conn.commit()
     conn.close()
@@ -99,8 +99,8 @@ def login():
         conn.close()
 
         if user:
-            # 🎭 단순 로그인 성공 시 '가짜 플래그'를 출력하여 낚시!
-            fake_flag = "FLAG{Fake_Flag_Try_Error_Based_SQLi!}"
+            # 🎭 단순 로그인 성공 시 '가짜 플래그' 출력 (BUBU{} 형식 적용)
+            fake_flag = "BUBU{Fake_Flag_Try_Error_Based_SQLi!}"
             return render_template_string(HTML_TEMPLATE, message=f"로그인 성공! Flag: {fake_flag}")
         else:
             return render_template_string(HTML_TEMPLATE, message="로그인 실패: 아이디나 비밀번호가 틀렸습니다.")
